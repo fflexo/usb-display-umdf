@@ -30,4 +30,4 @@ jobs:
       
     - name: Install
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: pnputil /add-driver ${{env.SOLUTION_FILE_PATH}}\\${{env.BUILD_PLATFORM}}\\${{env.BUILD_CONFIGURATION}} *.inf /install
+      run: pnputil /add-driver ${{env.SOLUTION_FILE_PATH}}\${{env.BUILD_PLATFORM}}\${{env.BUILD_CONFIGURATION}}\*.inf /install
