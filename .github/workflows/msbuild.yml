@@ -29,5 +29,5 @@ jobs:
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}}  ${{env.SOLUTION_FILE_PATH}}
       
     - name: Install
-      working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.BUILD_PLATFORM}}/${{env.BUILD_CONFIGURATION}}
-      run: pnputil /add-driver *.inf /install
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: pnputil /add-driver ${{env.SOLUTION_FILE_PATH}}\\${{env.BUILD_PLATFORM}}\\${{env.BUILD_CONFIGURATION}} *.inf /install
