@@ -30,7 +30,7 @@ jobs:
       
     - name: Install
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: "dir env:"
+      #run: "dir env:"
       #run: CertMgr.exe /add ${{env.SOLUTION_FILE_PATH}}\${{env.BUILD_PLATFORM}}\${{env.BUILD_CONFIGURATION}}\IddSampleDriver.cer /s /r localMachine trustedpublisher
 
       run: pnputil /add-driver ${{env.SOLUTION_FILE_PATH}}\${{env.BUILD_PLATFORM}}\${{env.BUILD_CONFIGURATION}}\IddSampleDriver\IddSampleDriver.inf 
