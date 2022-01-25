@@ -31,7 +31,8 @@ jobs:
     - name: Install
       working-directory: ${{env.GITHUB_WORKSPACE}}
 
-      run: RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection DefaultInstall 128 ${{env.SOLUTION_FILE_PATH}}\${{env.BUILD_PLATFORM}}\${{env.BUILD_CONFIGURATION}}\IddSampleDriver\IddSampleDriver.inf 
+      #run: RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection DefaultInstall 128 
+      run: pnputil /a ${{env.SOLUTION_FILE_PATH}}\${{env.BUILD_PLATFORM}}\${{env.BUILD_CONFIGURATION}}\IddSampleDriver\IddSampleDriver.inf /i
 
     - name: Sanity check
       run: pnputil -e
