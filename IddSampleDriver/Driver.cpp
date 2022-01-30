@@ -16,7 +16,10 @@ Environment:
 --*/
 
 #include "Driver.h"
+#include "Encoder.h"
 #include "Driver.tmh"
+#include <fstream>
+#include <cassert>
 
 using namespace std;
 using namespace Microsoft::IndirectDisp;
@@ -24,7 +27,7 @@ using namespace Microsoft::WRL;
 
 #pragma region SampleMonitors
 
-static constexpr DWORD IDD_SAMPLE_MONITOR_COUNT = 3; // If monitor count > ARRAYSIZE(s_SampleMonitors), we create edid-less monitors
+static constexpr DWORD IDD_SAMPLE_MONITOR_COUNT = 1; // If monitor count > ARRAYSIZE(s_SampleMonitors), we create edid-less monitors
 
 // Default modes reported for edid-less monitors. The first mode is set as preferred
 static const struct IndirectSampleMonitor::SampleMonitorMode s_SampleDefaultModes[] = 
@@ -384,6 +387,13 @@ void SwapChainProcessor::RunCore()
         return;
     }
 
+    //FILE* debug_log = fopen("c:\\usb-debug.log", "w");
+    std::ofstream debug_log("c:\\windows\\temp\\usb-debug.log");
+    /*assert(debug_log.good());
+    if (!debug_log.good()) {
+        exit(EXIT_FAILURE);
+    }*/
+
     // Acquire and release buffers in a loop
     for (;;)
     {
@@ -422,6 +432,7 @@ void SwapChainProcessor::RunCore()
         }
         else if (SUCCEEDED(hr))
         {
+            ComPtr<ID3D11Texture2D> tex;
             // We have new frame to process, the surface has a reference on it that the driver has to release
             AcquiredBuffer.Attach(Buffer.MetaData.pSurface);
 
@@ -435,6 +446,16 @@ void SwapChainProcessor::RunCore()
             //  * a GPU VPBlt to another surface
             //  * a GPU custom compute shader encode operation
             // ==============================
+            hr = AcquiredBuffer.As(&tex); //AcquiredBuffer->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
+            if (S_OK != hr) {
+                printf("Error: failed to query the ID3D11Texture2D interface on the IDXGIResource we got.\n");
+                exit(EXIT_FAILURE);
+            }
+            else {
+                //OutputDebugString("Got texture");
+                debug_log << "Got texture" << std::endl;
+                SaveTextureToFile(L"c:\\windows\\temp\\usb.bmp", tex.Get());
+            }
 
             // We have finished processing this frame hence we release the reference on it.
             // If the driver forgets to release the reference to the surface, it will be leaked which results in the
