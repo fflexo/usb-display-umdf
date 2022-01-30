@@ -1,6 +1,7 @@
 #include "Encoder.h"
 #include "Precomp.h"
 #include "Util.h"
+#include "qoi.h"
 #include <exception>
 
 using namespace Microsoft::WRL;
@@ -8,6 +9,7 @@ using namespace Microsoft::WRL;
 
 void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
 {
+    (void)FileName;
     HRESULT hr;
 
     // First verify that we can map the texture
@@ -15,13 +17,13 @@ void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
     Texture->GetDesc(&desc);
 
     // translate texture format to WIC format. We support only BGRA and ARGB.
-    GUID wicFormatGuid;
+    //GUID wicFormatGuid;
     switch (desc.Format) {
     case DXGI_FORMAT_R8G8B8A8_UNORM:
-        wicFormatGuid = GUID_WICPixelFormat32bppRGBA;
+        //wicFormatGuid = GUID_WICPixelFormat32bppRGBA;
         break;
     case DXGI_FORMAT_B8G8R8A8_UNORM:
-        wicFormatGuid = GUID_WICPixelFormat32bppBGRA;
+        //wicFormatGuid = GUID_WICPixelFormat32bppBGRA;
         break;
     default:
         throw std::exception("Unsupported DXGI_FORMAT: %d. Only RGBA and BGRA are supported.");
@@ -92,6 +94,19 @@ void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
         d3dContext->Unmap(mappedTexture.Get(), 0);
         });
 
+
+    // AWKWARD: desc.Height * mapInfo.RowPitch - how into QOI?
+    qoi_desc qdesc = {};
+    qdesc.width = desc.Width;
+    qdesc.height = desc.Height;
+    qdesc.channels = 4;
+    qdesc.colorspace = QOI_SRGB;
+    int out_len = 0;
+
+    void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len);
+    free(data);
+
+#if 0
     ComPtr<IWICImagingFactory> wicFactory;
     hr = CoCreateInstance(
         CLSID_WICImagingFactory,
@@ -171,4 +186,5 @@ void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
     if (FAILED(hr)) {
         throw std::exception("Failed to commit encoder");
     }
+#endif
 }
