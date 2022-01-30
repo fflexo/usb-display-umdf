@@ -454,7 +454,7 @@ void SwapChainProcessor::RunCore()
             else {
                 //OutputDebugString("Got texture");
                 debug_log << "Got texture" << std::endl;
-                SaveTextureToFile(L"c:\\windows\\temp\\usb.bmp", tex.Get());
+                SaveTextureToFile("c:\\windows\\temp\\usb.qoi", tex.Get());
             }
 
             // We have finished processing this frame hence we release the reference on it.

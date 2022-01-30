@@ -3,13 +3,14 @@
 #include "Util.h"
 #include "qoi.h"
 #include <exception>
+#include <fstream>
 
 using namespace Microsoft::WRL;
 //using namespace WEX::TestExecution;
 
-void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
+void SaveTextureToFile(PCSTR FileName, ID3D11Texture2D* Texture)
 {
-    (void)FileName;
+    //(void)FileName;
     HRESULT hr;
 
     // First verify that we can map the texture
@@ -104,6 +105,12 @@ void SaveTextureToFile(PCWSTR FileName, ID3D11Texture2D* Texture)
     int out_len = 0;
 
     void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len);
+
+    if (data) {
+        std::ofstream file;
+        file.open(FileName, std::ios_base::out | std::ios_base::binary);
+        file.write((char*)data, out_len);
+    }
     free(data);
 
 #if 0
