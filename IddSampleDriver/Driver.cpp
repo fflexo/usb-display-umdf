@@ -388,11 +388,34 @@ void SwapChainProcessor::RunCore()
     }
 
     //FILE* debug_log = fopen("c:\\usb-debug.log", "w");
-    std::ofstream debug_log("c:\\windows\\temp\\usb-debug.log");
+    std::wofstream debug_log("c:\\windows\\temp\\usb-debug.log");
     /*assert(debug_log.good());
     if (!debug_log.good()) {
         exit(EXIT_FAILURE);
     }*/
+    #define pipename L"\\\\.\\pipe\\UsbDisplay"
+    HANDLE pipe = CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+    if (pipe == INVALID_HANDLE_VALUE)
+    {
+        /*/LPTSTR errorText = NULL;
+
+        FormatMessageA(
+            // use system message tables to retrieve error text
+            FORMAT_MESSAGE_FROM_SYSTEM
+            // allocate buffer on local heap for error text
+            | FORMAT_MESSAGE_ALLOCATE_BUFFER
+            // Important! will fail otherwise, since we're not 
+            // (and CANNOT) pass insertion parameters
+            | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,    // unused with FORMAT_MESSAGE_FROM_SYSTEM
+            GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR)&errorText,  // output 
+            0, // minimum size for output buffer
+            NULL);   // arguments - see note */
+        debug_log << "Error: " <<  GetLastError() << "\n";
+    }
 
     // Acquire and release buffers in a loop
     for (;;)
@@ -454,7 +477,7 @@ void SwapChainProcessor::RunCore()
             else {
                 //OutputDebugString("Got texture");
                 debug_log << "Got texture" << std::endl;
-                SaveTextureToFile("c:\\windows\\temp\\usb.qoi", tex.Get());
+                SaveToPipe(pipe, tex.Get());
             }
 
             // We have finished processing this frame hence we release the reference on it.

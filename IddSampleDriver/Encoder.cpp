@@ -8,7 +8,7 @@
 using namespace Microsoft::WRL;
 //using namespace WEX::TestExecution;
 
-void SaveTextureToFile(PCSTR FileName, ID3D11Texture2D* Texture)
+void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture)
 {
     //(void)FileName;
     HRESULT hr;
@@ -107,9 +107,12 @@ void SaveTextureToFile(PCSTR FileName, ID3D11Texture2D* Texture)
     void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len);
 
     if (data) {
-        std::ofstream file;
+        DWORD numWritten;
+        WriteFile(pipe, data, out_len, &numWritten, NULL);
+
+        /*/std::ofstream file;
         file.open(FileName, std::ios_base::out | std::ios_base::binary);
-        file.write((char*)data, out_len);
+        file.write((char*)data, out_len);*/
     }
     free(data);
 

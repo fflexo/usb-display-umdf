@@ -10,4 +10,4 @@
 #include <avrt.h>
 #include <wrl.h>
 
-void SaveTextureToFile(PCSTR FileName, ID3D11Texture2D* Texture);
+void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture);

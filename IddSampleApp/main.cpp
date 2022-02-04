@@ -5,6 +5,8 @@
 #include <swdevice.h>
 #include <conio.h>
 #include <wrl.h>
+#include <sddl.h>
+
 
 VOID WINAPI
 CreationCallback(
@@ -22,10 +24,55 @@ CreationCallback(
     UNREFERENCED_PARAMETER(pszDeviceInstanceId);
 }
 
+#define pipename L"\\\\.\\pipe\\UsbDisplay"
+
+static HANDLE CreateFramePipe(void) {
+    SECURITY_ATTRIBUTES sa = {};
+
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = FALSE;
+
+    // TODO: ACL IS DEFINITELY WRONG
+    BOOL ok = ConvertStringSecurityDescriptorToSecurityDescriptor(L"D:P(A;; GRGW;;; UD)",
+            SDDL_REVISION_1,
+            &sa.lpSecurityDescriptor,
+            NULL);
+    if (!ok) {
+        printf("SDDL wrong\n");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        printf("SDDL Ok\n");
+    }
+    HANDLE pipe = CreateNamedPipe(pipename, PIPE_ACCESS_DUPLEX, PIPE_WAIT|PIPE_TYPE_MESSAGE|PIPE_REJECT_REMOTE_CLIENTS, 1, 64*1024, 32*1024*1024, 120 * 1000, &sa);
+    if (INVALID_HANDLE_VALUE == pipe) {
+        printf("Failed to create frame pipe\n");
+        exit(EXIT_FAILURE);
+    }
+    LocalFree(sa.lpSecurityDescriptor);
+    return pipe;
+}
+
+static void RunPipe(HANDLE pipe) {
+    //char data[1024];
+    std::vector<char> frame(32 * 1024 * 1024);
+    DWORD numRead;
+
+    ConnectNamedPipe(pipe, NULL);
+
+    while (1) {
+        numRead = -1;
+        ReadFile(pipe, &frame[0], frame.size(), &numRead, NULL);
+        printf("Got %d bytes in frame\n", numRead);
+    }
+}
+
 int __cdecl main(int argc, wchar_t *argv[])
 {
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
+
+    HANDLE pipe = CreateFramePipe();
 
     HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     HSWDEVICE hSwDevice;
@@ -71,6 +118,8 @@ int __cdecl main(int argc, wchar_t *argv[])
         return 1;
     }
     printf("Device created\n\n");
+
+    RunPipe(pipe);
     
     // Now wait for user to indicate the device should be stopped
     printf("Press 'x' to exit and destory the software device\n");
