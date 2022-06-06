@@ -17,14 +17,14 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture)
     D3D11_TEXTURE2D_DESC desc;
     Texture->GetDesc(&desc);
 
-    // translate texture format to WIC format. We support only BGRA and ARGB.
-    //GUID wicFormatGuid;
+    // translate texture format to QOI format. We support only BGRA and ARGB.
+    qoi_source_format qoi_fmt;
     switch (desc.Format) {
     case DXGI_FORMAT_R8G8B8A8_UNORM:
-        //wicFormatGuid = GUID_WICPixelFormat32bppRGBA;
+        qoi_fmt = QOI_SRC_RGBA;
         break;
     case DXGI_FORMAT_B8G8R8A8_UNORM:
-        //wicFormatGuid = GUID_WICPixelFormat32bppBGRA;
+        qoi_fmt = QOI_SRC_BGRA;
         break;
     default:
         throw std::exception("Unsupported DXGI_FORMAT: %d. Only RGBA and BGRA are supported.");
@@ -104,7 +104,7 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture)
     qdesc.colorspace = QOI_SRGB;
     int out_len = 0;
 
-    void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len);
+    void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len, qoi_fmt);
 
     if (data) {
         DWORD numWritten;

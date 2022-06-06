@@ -254,6 +254,11 @@ extern "C" {
 #define QOI_SRGB   0
 #define QOI_LINEAR 1
 
+	enum qoi_source_format {
+		QOI_SRC_RGBA = 0,
+		QOI_SRC_BGRA = 1,
+	};
+
 	typedef struct {
 		unsigned int width;
 		unsigned int height;
@@ -296,7 +301,7 @@ extern "C" {
 
 	The returned qoi data should be free()d after use. */
 
-	void* qoi_encode(const void* data, const qoi_desc* desc, int* out_len);
+	void* qoi_encode(const void* data, const qoi_desc* desc, int* out_len, enum qoi_source_format fmt);
 
 
 	/* Decode a QOI image from memory.
@@ -374,7 +379,7 @@ static unsigned int qoi_read_32(const unsigned char* bytes, int* p) {
 	return a << 24 | b << 16 | c << 8 | d;
 }
 
-void* qoi_encode(const void* data, const qoi_desc* desc, int* out_len) {
+void* qoi_encode(const void* data, const qoi_desc* desc, int* out_len, enum qoi_source_format fmt) {
 	int i, max_size, p, run;
 	int px_len, px_end, px_pos, channels;
 	unsigned char* bytes;
@@ -432,6 +437,13 @@ void* qoi_encode(const void* data, const qoi_desc* desc, int* out_len) {
 			px.rgba.r = pixels[px_pos + 0];
 			px.rgba.g = pixels[px_pos + 1];
 			px.rgba.b = pixels[px_pos + 2];
+		}
+
+		// Android only supports one format so do the swizzle here (Bitmap.Config.ARGB_8888)
+		if (fmt == QOI_SRC_BGRA) {
+			unsigned char tmp = px.rgba.r;
+			px.rgba.r = px.rgba.b;
+			px.rgba.b = tmp;
 		}
 
 		if (px.v == px_prev.v) {
