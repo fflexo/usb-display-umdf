@@ -10,4 +10,6 @@
 #include <avrt.h>
 #include <wrl.h>
 
-void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture);
+typedef OVERLAPPED IoStatus;
+
+void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state);

@@ -331,6 +331,8 @@ SwapChainProcessor::SwapChainProcessor(IDDCX_SWAPCHAIN hSwapChain, shared_ptr<Di
 
     // Immediately create and run the swap-chain processing thread, passing 'this' as the thread parameter
     m_hThread.Attach(CreateThread(nullptr, 0, RunThread, this, 0, nullptr));
+
+    memset(&ioState, 0, sizeof ioState);
 }
 
 SwapChainProcessor::~SwapChainProcessor()
@@ -394,7 +396,7 @@ void SwapChainProcessor::RunCore()
         exit(EXIT_FAILURE);
     }*/
     #define pipename L"\\\\.\\pipe\\UsbDisplay"
-    HANDLE pipe = CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    HANDLE pipe = CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
     if (pipe == INVALID_HANDLE_VALUE)
     {
@@ -474,10 +476,10 @@ void SwapChainProcessor::RunCore()
                 printf("Error: failed to query the ID3D11Texture2D interface on the IDXGIResource we got.\n");
                 exit(EXIT_FAILURE);
             }
-            else {
+            else if (!ioState.hEvent) {
                 //OutputDebugString("Got texture");
                 debug_log << "Got texture" << std::endl;
-                SaveToPipe(pipe, tex.Get());
+                SaveToPipe(pipe, tex.Get(), &ioState);
             }
 
             // We have finished processing this frame hence we release the reference on it.

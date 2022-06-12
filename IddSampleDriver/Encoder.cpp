@@ -8,7 +8,13 @@
 using namespace Microsoft::WRL;
 //using namespace WEX::TestExecution;
 
-void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture)
+static void IoCompletionHandler(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
+    (void)dwErrorCode;
+    (void)dwNumberOfBytesTransfered;
+    lpOverlapped->hEvent = 0;
+}
+
+void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
 {
     //(void)FileName;
     HRESULT hr;
@@ -107,8 +113,10 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture)
     void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len, qoi_fmt);
 
     if (data) {
-        DWORD numWritten;
-        WriteFile(pipe, data, out_len, &numWritten, NULL);
+        //assert(!state->hEvent);
+        memset(state, 0, sizeof *state);
+        state->hEvent = INVALID_HANDLE_VALUE;
+        /*BOOL writeOk =*/ WriteFileEx(pipe, data, out_len, state, &IoCompletionHandler);
 
         /*/std::ofstream file;
         file.open(FileName, std::ios_base::out | std::ios_base::binary);
