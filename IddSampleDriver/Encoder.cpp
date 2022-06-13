@@ -11,6 +11,7 @@ using namespace Microsoft::WRL;
 static void IoCompletionHandler(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
     (void)dwErrorCode;
     (void)dwNumberOfBytesTransfered;
+    free(lpOverlapped->hEvent);
     lpOverlapped->hEvent = 0;
 }
 
@@ -115,14 +116,14 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
     if (data) {
         //assert(!state->hEvent);
         memset(state, 0, sizeof *state);
-        state->hEvent = INVALID_HANDLE_VALUE;
+        state->hEvent = data;
         /*BOOL writeOk =*/ WriteFileEx(pipe, data, out_len, state, &IoCompletionHandler);
 
         /*/std::ofstream file;
         file.open(FileName, std::ios_base::out | std::ios_base::binary);
         file.write((char*)data, out_len);*/
     }
-    free(data);
+    //free(data);
 
 #if 0
     ComPtr<IWICImagingFactory> wicFactory;
