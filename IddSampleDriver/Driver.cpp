@@ -416,7 +416,8 @@ void SwapChainProcessor::RunCore()
             (LPTSTR)&errorText,  // output 
             0, // minimum size for output buffer
             NULL);   // arguments - see note */
-        debug_log << "Error: " <<  GetLastError() << "\n";
+        debug_log << "Error opening pipe: " <<  GetLastError() << "\n";
+        exit(EXIT_FAILURE);
     }
 
     // Acquire and release buffers in a loop
@@ -461,6 +462,24 @@ void SwapChainProcessor::RunCore()
             // We have new frame to process, the surface has a reference on it that the driver has to release
             AcquiredBuffer.Attach(Buffer.MetaData.pSurface);
 
+            DWORD bytesTransfered = 0;
+            // Check for an outstanding pipe write still
+            if (pending) {
+                if (GetOverlappedResult(pipe, &ioState, &bytesTransfered, FALSE)) {
+                    debug_log << "Async pipe write completed, sent: " << bytesTransfered << " bytes\n";
+                    free(pending);
+                    pending = NULL;
+                }
+                else if (GetLastError() == ERROR_IO_INCOMPLETE) {
+                    // Nothing doing, leave pending non-null
+                }
+                else {
+                    debug_log << "Async pipe has a problem - IO is completed, but not successful\n";
+                    free(pending);
+                    pending = NULL;
+                }
+            }
+
             // ==============================
             // TODO: Process the frame here
             //
@@ -473,13 +492,16 @@ void SwapChainProcessor::RunCore()
             // ==============================
             hr = AcquiredBuffer.As(&tex); //AcquiredBuffer->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
             if (S_OK != hr) {
-                printf("Error: failed to query the ID3D11Texture2D interface on the IDXGIResource we got.\n");
+                debug_log << "Error: failed to query the ID3D11Texture2D interface on the IDXGIResource we got.\n";
                 exit(EXIT_FAILURE);
             }
-            else if (!ioState.hEvent) {
+            else if (!pending) {
                 //OutputDebugString("Got texture");
-                debug_log << "Got texture" << std::endl;
-                SaveToPipe(pipe, tex.Get(), &ioState);
+                //debug_log << "Got texture" << std::endl;
+                pending = SaveToPipe(pipe, tex.Get(), &ioState, debug_log);
+            }
+            else {
+                //debug_log << "skipping pipe write/encode - transfer in progress" << std::endl;
             }
 
             // We have finished processing this frame hence we release the reference on it.
@@ -511,6 +533,8 @@ void SwapChainProcessor::RunCore()
             // The swap-chain was likely abandoned (e.g. DXGI_ERROR_ACCESS_LOST), so exit the processing loop
             break;
         }
+
+        SleepEx(0, FALSE);
     }
 }
 

@@ -99,6 +99,7 @@ namespace Microsoft
             * We use handle to record the state of the transaction fast for the SwapChain callback
             */
             OVERLAPPED ioState;
+            void *pending;
         };
 
         /// <summary>

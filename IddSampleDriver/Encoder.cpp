@@ -8,14 +8,7 @@
 using namespace Microsoft::WRL;
 //using namespace WEX::TestExecution;
 
-static void IoCompletionHandler(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
-    (void)dwErrorCode;
-    (void)dwNumberOfBytesTransfered;
-    free(lpOverlapped->hEvent);
-    lpOverlapped->hEvent = 0;
-}
-
-void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
+void *SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, LPOVERLAPPED state, std::wostream& debug_log)
 {
     //(void)FileName;
     HRESULT hr;
@@ -34,7 +27,8 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
         qoi_fmt = QOI_SRC_BGRA;
         break;
     default:
-        throw std::exception("Unsupported DXGI_FORMAT: %d. Only RGBA and BGRA are supported.");
+        debug_log << "Unsupported DXGI_FORMAT: %d. Only RGBA and BGRA are supported\n";
+        return NULL;
     }
 
     // Get the device context
@@ -54,6 +48,8 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
         0,  // MapFlags
         &mapInfo);
 
+    //debug_log << "Map attempted" << std::endl;
+
     if (FAILED(hr)) {
         // If we failed to map the texture, copy it to a staging resource
         if (hr == E_INVALIDARG) {
@@ -72,7 +68,8 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
             ComPtr<ID3D11Texture2D> stagingTexture;
             hr = d3dDevice->CreateTexture2D(&desc2, nullptr, &stagingTexture);
             if (FAILED(hr)) {
-                throw std::exception("Failed to create staging texture");
+                debug_log << "Failed to create staging texture\n";
+                return NULL;
             }
 
             // copy the texture to a staging resource
@@ -86,13 +83,15 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
                 0,
                 &mapInfo);
             if (FAILED(hr)) {
-                throw std::exception("Failed to map staging texture");
+                debug_log << "Failed to map staging texture\n";
+                return NULL;
             }
 
             mappedTexture = std::move(stagingTexture);
         }
         else {
-            throw std::exception("Failed to map texture.");
+            debug_log << "Failed to map texture.\n";
+            return NULL;
         }
     }
     else {
@@ -102,6 +101,7 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
         d3dContext->Unmap(mappedTexture.Get(), 0);
         });
 
+    //debug_log << "Begin encode" << std::endl;
 
     // AWKWARD: desc.Height * mapInfo.RowPitch - how into QOI?
     qoi_desc qdesc = {};
@@ -113,97 +113,33 @@ void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, IoStatus *state)
 
     void* data = qoi_encode(mapInfo.pData, &qdesc, &out_len, qoi_fmt);
 
+    //debug_log << "Encode done" << std::endl;
+    if (out_len > FRAME_SIZE_MAX) {
+        debug_log << "Compressed frame exceeded 32MB limit\n";
+        free(data);
+        return NULL;
+    }
     if (data) {
         //assert(!state->hEvent);
         memset(state, 0, sizeof *state);
-        state->hEvent = data;
-        /*BOOL writeOk =*/ WriteFileEx(pipe, data, out_len, state, &IoCompletionHandler);
-
+        //state->hEvent = data;
+        //debug_log << "Before write" << std::endl;
+        //BOOL writeOk = WriteFileEx(pipe, data, out_len, state, /*IoCompletionHandler*/NULL);
+        BOOL writeOk = WriteFile(pipe, data, out_len, NULL, state);
+        if (!writeOk) {
+            if (GetLastError() != ERROR_IO_PENDING) {
+                debug_log << "Write not ok" << std::endl;
+                debug_log.flush();
+            }
+        }
+        else {
+            // this was fast and synchronous - free and return NULL instead?
+        }
+       
         /*/std::ofstream file;
         file.open(FileName, std::ios_base::out | std::ios_base::binary);
         file.write((char*)data, out_len);*/
     }
     //free(data);
-
-#if 0
-    ComPtr<IWICImagingFactory> wicFactory;
-    hr = CoCreateInstance(
-        CLSID_WICImagingFactory,
-        nullptr,
-        CLSCTX_INPROC_SERVER,
-        __uuidof(wicFactory),
-        reinterpret_cast<void**>(wicFactory.GetAddressOf()));
-    if (FAILED(hr)) {
-        throw std::exception("Failed to create instance of WICImagingFactory");
-    }
-
-    ComPtr<IWICBitmapEncoder> wicEncoder;
-    hr = wicFactory->CreateEncoder(
-        GUID_ContainerFormatBmp,
-        nullptr,
-        &wicEncoder);
-    if (FAILED(hr)) {
-        throw std::exception("Failed to create BMP encoder");
-    }
-
-    ComPtr<IWICStream> wicStream;
-    hr = wicFactory->CreateStream(&wicStream);
-    if (FAILED(hr)) {
-        throw std::exception("Failed to create IWICStream");
-    }
-
-    hr = wicStream->InitializeFromFilename(FileName, GENERIC_WRITE);
-    if (FAILED(hr)) {
-        throw std::exception("Failed to initialize stream from file name");
-    }
-
-    hr = wicEncoder->Initialize(wicStream.Get(), WICBitmapEncoderNoCache);
-    if (FAILED(hr)) {
-        throw std::exception("Failed to initialize bitmap encoder");
-    }
-
-    // Encode and commit the frame
-    {
-        ComPtr<IWICBitmapFrameEncode> frameEncode;
-        wicEncoder->CreateNewFrame(&frameEncode, nullptr);
-        if (FAILED(hr)) {
-            throw std::exception("Failed to create IWICBitmapFrameEncode");
-        }
-
-        hr = frameEncode->Initialize(nullptr);
-        if (FAILED(hr)) {
-            throw std::exception("Failed to initialize IWICBitmapFrameEncode");
-        }
-
-
-        hr = frameEncode->SetPixelFormat(&wicFormatGuid);
-        if (FAILED(hr)) {
-            throw std::exception("SetPixelFormat(%s) failed.");
-        }
-
-        hr = frameEncode->SetSize(desc.Width, desc.Height);
-        if (FAILED(hr)) {
-            throw std::exception("SetSize(...) failed.");
-        }
-
-        hr = frameEncode->WritePixels(
-            desc.Height,
-            mapInfo.RowPitch,
-            desc.Height * mapInfo.RowPitch,
-            reinterpret_cast<BYTE*>(mapInfo.pData));
-        if (FAILED(hr)) {
-            throw std::exception("frameEncode->WritePixels(...) failed.");
-        }
-
-        hr = frameEncode->Commit();
-        if (FAILED(hr)) {
-            throw std::exception("Failed to commit frameEncode");
-        }
-    }
-
-    hr = wicEncoder->Commit();
-    if (FAILED(hr)) {
-        throw std::exception("Failed to commit encoder");
-    }
-#endif
+    return data;
 }
