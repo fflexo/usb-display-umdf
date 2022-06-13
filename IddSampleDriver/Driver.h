@@ -74,6 +74,7 @@ namespace Microsoft
         public:
             SwapChainProcessor(IDDCX_SWAPCHAIN hSwapChain, std::shared_ptr<Direct3DDevice> Device, HANDLE NewFrameEvent);
             ~SwapChainProcessor();
+            SwapChainProcessor(const SwapChainProcessor&) = delete;
 
         private:
             static DWORD CALLBACK RunThread(LPVOID Argument);
@@ -86,6 +87,19 @@ namespace Microsoft
             HANDLE m_hAvailableBufferEvent;
             Microsoft::WRL::Wrappers::Thread m_hThread;
             Microsoft::WRL::Wrappers::Event m_hTerminateEvent;
+
+            /*
+            * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefileex
+            * The WriteFileEx function ignores the OVERLAPPED structure's hEvent member. 
+            * An application is free to use that member for its own purposes in the context of a 
+            * WriteFileEx call. WriteFileEx signals completion of its writing operation by calling, 
+            * or queuing a call to, the completion routine pointed to by lpCompletionRoutine, so it 
+            * does not need an event handle.
+            * 
+            * We use handle to record the state of the transaction fast for the SwapChain callback
+            */
+            OVERLAPPED ioState;
+            void *pending;
         };
 
         /// <summary>

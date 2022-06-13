@@ -9,5 +9,8 @@
 #include <d3d11_2.h>
 #include <avrt.h>
 #include <wrl.h>
+#include <iosfwd>
 
-void SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture);
+#define FRAME_SIZE_MAX (1024*1024*32)
+
+void *SaveToPipe(HANDLE pipe, ID3D11Texture2D* Texture, LPOVERLAPPED state, std::wostream& debug_log);
